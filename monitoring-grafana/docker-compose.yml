@@ -1,0 +1,152 @@
+services:
+  # PostgreSQL dedicated for monitoring data
+  postgres-monitoring:
+    image: postgres:15-alpine
+    container_name: postgres-monitoring
+    restart: unless-stopped
+    ports:
+      - "5433:5432" # Different port from app database
+    environment:
+      POSTGRES_DB: monitoring_db
+      POSTGRES_USER: ${MONITORING_DB_USER:-monitoring}
+      POSTGRES_PASSWORD: ${MONITORING_DB_PASSWORD:-monitoring123}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - monitoring-db-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - monitoring-network
+      - task-mgmt-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitoring -d monitoring_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+
+  # Prometheus - Metrics storage for host monitoring
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node Exporter - Collects host machine metrics
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring-network
+    pid: host
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana-oss:10.2.3
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "5602:3000"
+    environment:
+      # Security
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_SECRET_KEY=${GRAFANA_SECRET_KEY:-SW2YcwTIb9zpOOhoPsMm}
+
+      # Server
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+      - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN:-localhost}
+
+      # Database (Grafana's own config storage)
+      - GF_DATABASE_TYPE=sqlite3
+
+      # Anonymous access (disable in production)
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+
+      # Logging
+      - GF_LOG_LEVEL=info
+
+      # Plugins
+      - GF_INSTALL_PLUGINS=
+
+      # Disable telemetry
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+    networks:
+      - monitoring-network
+      - task-mgmt-net
+    depends_on:
+      postgres-monitoring:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  monitoring-db-data:
+    driver: local
+  grafana-data:
+    driver: local
+  prometheus-data:
+    driver: local
+
+networks:
+  monitoring-network:
+    name: monitoring-network
+    driver: bridge
+  task-mgmt-net:
+    external: true
+    name: task-mgmt-net

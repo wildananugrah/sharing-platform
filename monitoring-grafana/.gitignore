@@ -1,0 +1,19 @@
+# Environment variables
+.env
+
+# Grafana data (excluded from git)
+grafana-data/
+
+# PostgreSQL data
+postgres-data/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+backup_*.sql
+*.backup
