@@ -36,6 +36,7 @@ export default function BroadcastViewer({
   const [viewerCount, setViewerCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [canPlayAudio, setCanPlayAudio] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -57,6 +58,13 @@ export default function BroadcastViewer({
 
             // Count participants
             setViewerCount(newRoom.remoteParticipants.size);
+          }
+        });
+
+        newRoom.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+          if (mounted) {
+            setCanPlayAudio(newRoom.canPlaybackAudio);
+            console.log('Audio playback status:', newRoom.canPlaybackAudio);
           }
         });
 
@@ -95,22 +103,30 @@ export default function BroadcastViewer({
 
           if (mounted) {
             if (track.kind === 'video' && videoRef.current) {
-              console.log('Attaching video track to element', videoRef.current);
-              const element = track.attach(videoRef.current) as HTMLVideoElement;
-              console.log('Video element after attach:', {
-                srcObject: element.srcObject,
-                readyState: element.readyState,
-                videoWidth: element.videoWidth,
-                videoHeight: element.videoHeight,
-              });
+              console.log('Attaching video track to element');
 
-              // Ensure video plays
-              element.play().catch(err => console.error('Error playing video:', err));
+              // Correct way: attach track directly to existing element
+              track.attach(videoRef.current);
+
+              console.log('Video element after attach:', {
+                srcObject: videoRef.current.srcObject,
+                readyState: videoRef.current.readyState,
+                videoWidth: videoRef.current.videoWidth,
+                videoHeight: videoRef.current.videoHeight,
+                paused: videoRef.current.paused,
+                muted: videoRef.current.muted,
+              });
             } else if (track.kind === 'audio' && audioRef.current) {
-              console.log('Attaching audio track to element', audioRef.current);
-              const audioElement = track.attach(audioRef.current) as HTMLAudioElement;
-              // Ensure audio plays
-              audioElement.play().catch(err => console.error('Error playing audio:', err));
+              console.log('Attaching audio track to element');
+
+              // Correct way: attach track directly to existing element
+              track.attach(audioRef.current);
+
+              console.log('Audio element after attach:', {
+                srcObject: audioRef.current.srcObject,
+                paused: audioRef.current.paused,
+                muted: audioRef.current.muted,
+              });
             }
 
             // Set broadcaster if not already set
@@ -123,11 +139,9 @@ export default function BroadcastViewer({
         newRoom.on(RoomEvent.TrackUnsubscribed, (
           track: RemoteTrack
         ) => {
-          if (track.kind === 'video' && videoRef.current) {
-            track.detach(videoRef.current);
-          } else if (track.kind === 'audio' && audioRef.current) {
-            track.detach(audioRef.current);
-          }
+          console.log('Track unsubscribed:', track.kind);
+          // Detach from all elements
+          track.detach();
         });
 
         newRoom.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -160,51 +174,13 @@ export default function BroadcastViewer({
           setRoom(newRoom);
           roomInstance = newRoom;
 
-          // Check for existing broadcaster and subscribe to their tracks
-          newRoom.remoteParticipants.forEach(async (participant) => {
-            console.log('Found existing participant:', participant.identity, participant.trackPublications);
+          // Check for existing broadcaster
+          newRoom.remoteParticipants.forEach((participant) => {
+            console.log('Found existing participant:', participant.identity);
 
             if (participant.permissions?.canPublish) {
               setBroadcaster(participant);
             }
-
-            // Subscribe to already published tracks
-            participant.trackPublications.forEach(async (publication) => {
-              console.log('Publication:', publication.trackSid, 'subscribed:', publication.isSubscribed, 'track:', publication.track);
-
-              // Manually subscribe if not already subscribed
-              if (!publication.isSubscribed) {
-                console.log('Manually subscribing to track:', publication.trackSid);
-                publication.setSubscribed(true);
-              }
-
-              if (publication.track) {
-                console.log('Attaching existing track:', publication.track.kind);
-                console.log('Track details:', {
-                  sid: publication.track.sid,
-                  muted: publication.track.isMuted,
-                  enabled: publication.track.mediaStreamTrack?.enabled,
-                  readyState: publication.track.mediaStreamTrack?.readyState,
-                });
-
-                if (publication.track.kind === 'video' && videoRef.current) {
-                  const element = publication.track.attach(videoRef.current) as HTMLVideoElement;
-                  console.log('Video element after attach:', {
-                    srcObject: element.srcObject,
-                    readyState: element.readyState,
-                    videoWidth: element.videoWidth,
-                    videoHeight: element.videoHeight,
-                  });
-
-                  // Ensure video plays
-                  element.play().catch(err => console.error('Error playing video:', err));
-                } else if (publication.track.kind === 'audio' && audioRef.current) {
-                  const audioElement = publication.track.attach(audioRef.current) as HTMLAudioElement;
-                  // Ensure audio plays
-                  audioElement.play().catch(err => console.error('Error playing audio:', err));
-                }
-              }
-            });
           });
         }
       } catch (err) {
@@ -259,7 +235,7 @@ export default function BroadcastViewer({
         autoPlay
         playsInline
         muted={false}
-        controls={false}
+        controls
         className="w-full h-full object-contain"
       />
       <audio
@@ -303,6 +279,31 @@ export default function BroadcastViewer({
               </svg>
             </div>
             <p className="text-white text-lg">Waiting for broadcaster to start...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Audio playback permission button */}
+      {!canPlayAudio && room && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-50">
+          <div className="text-center">
+            <svg className="w-16 h-16 text-white mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+            <p className="text-white text-lg mb-4">Audio is muted</p>
+            <button
+              onClick={async () => {
+                try {
+                  await room.startAudio();
+                  setCanPlayAudio(true);
+                } catch (err) {
+                  console.error('Failed to start audio:', err);
+                }
+              }}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Enable Audio
+            </button>
           </div>
         </div>
       )}
