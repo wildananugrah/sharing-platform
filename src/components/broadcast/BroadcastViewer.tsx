@@ -85,16 +85,33 @@ export default function BroadcastViewer({
           participant: RemoteParticipant
         ) => {
           console.log('Track subscribed:', track.kind, participant.identity);
+          console.log('Track details:', {
+            sid: track.sid,
+            kind: track.kind,
+            muted: track.isMuted,
+            enabled: track.mediaStreamTrack?.enabled,
+            readyState: track.mediaStreamTrack?.readyState,
+          });
 
-          if (track.kind === 'video' && videoRef.current) {
-            track.attach(videoRef.current);
-          } else if (track.kind === 'audio' && audioRef.current) {
-            track.attach(audioRef.current);
-          }
+          if (mounted) {
+            if (track.kind === 'video' && videoRef.current) {
+              console.log('Attaching video track to element', videoRef.current);
+              const element = track.attach(videoRef.current) as HTMLVideoElement;
+              console.log('Video element after attach:', {
+                srcObject: element.srcObject,
+                readyState: element.readyState,
+                videoWidth: element.videoWidth,
+                videoHeight: element.videoHeight,
+              });
+            } else if (track.kind === 'audio' && audioRef.current) {
+              console.log('Attaching audio track to element', audioRef.current);
+              track.attach(audioRef.current);
+            }
 
-          // Set broadcaster if not already set
-          if (participant.permissions?.canPublish && mounted) {
-            setBroadcaster(participant);
+            // Set broadcaster if not already set
+            if (participant.permissions?.canPublish) {
+              setBroadcaster(participant);
+            }
           }
         });
 
@@ -139,7 +156,7 @@ export default function BroadcastViewer({
           roomInstance = newRoom;
 
           // Check for existing broadcaster and subscribe to their tracks
-          newRoom.remoteParticipants.forEach((participant) => {
+          newRoom.remoteParticipants.forEach(async (participant) => {
             console.log('Found existing participant:', participant.identity, participant.trackPublications);
 
             if (participant.permissions?.canPublish) {
@@ -147,11 +164,32 @@ export default function BroadcastViewer({
             }
 
             // Subscribe to already published tracks
-            participant.trackPublications.forEach((publication) => {
+            participant.trackPublications.forEach(async (publication) => {
+              console.log('Publication:', publication.trackSid, 'subscribed:', publication.isSubscribed, 'track:', publication.track);
+
+              // Manually subscribe if not already subscribed
+              if (!publication.isSubscribed) {
+                console.log('Manually subscribing to track:', publication.trackSid);
+                publication.setSubscribed(true);
+              }
+
               if (publication.track) {
                 console.log('Attaching existing track:', publication.track.kind);
+                console.log('Track details:', {
+                  sid: publication.track.sid,
+                  muted: publication.track.isMuted,
+                  enabled: publication.track.mediaStreamTrack?.enabled,
+                  readyState: publication.track.mediaStreamTrack?.readyState,
+                });
+
                 if (publication.track.kind === 'video' && videoRef.current) {
-                  publication.track.attach(videoRef.current);
+                  const element = publication.track.attach(videoRef.current) as HTMLVideoElement;
+                  console.log('Video element after attach:', {
+                    srcObject: element.srcObject,
+                    readyState: element.readyState,
+                    videoWidth: element.videoWidth,
+                    videoHeight: element.videoHeight,
+                  });
                 } else if (publication.track.kind === 'audio' && audioRef.current) {
                   publication.track.attach(audioRef.current);
                 }
@@ -210,11 +248,14 @@ export default function BroadcastViewer({
         ref={videoRef}
         autoPlay
         playsInline
+        muted={false}
+        controls={false}
         className="w-full h-full object-contain"
       />
       <audio
         ref={audioRef}
         autoPlay
+        muted={false}
       />
 
       {/* Overlay with broadcast info */}
