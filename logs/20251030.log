@@ -5636,3 +5636,14 @@
 {"timestamp":"2025-10-30 08:40:48","level":"info","message":"GET /api/chat - 200","method":"GET","uri":"/api/chat","status":200,"elapsedMs":9}
 {"timestamp":"2025-10-30 08:40:50","level":"info","message":"GET /api/chat - 200","method":"GET","uri":"/api/chat","status":200,"elapsedMs":11}
 {"timestamp":"2025-10-30 08:40:52","level":"info","message":"GET /api/chat - 200","method":"GET","uri":"/api/chat","status":200,"elapsedMs":12}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:25","level":"info","message":"Logger initialized"}
+{"timestamp":"2025-10-30 08:54:27","level":"info","message":"Logger initialized"}
