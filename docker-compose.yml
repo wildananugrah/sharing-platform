@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./app.Dockerfile
+    container_name: sharing-platform-app
+    restart: unless-stopped  # Choose either 'always' or 'unless-stopped'
+    ports:
+      - '5022:3000'
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      LIVEKIT_URL: ${LIVEKIT_URL}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+    command: >
+      sh -c "npx prisma migrate deploy &&
+             npm start"
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/ready"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+    networks:
+      app-net: {}
+    # Resource limits optimized for 8GB RAM, 2 vCPU server
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'      # Max 1.5 vCPUs for app
+          memory: 3G       # Max 3GB RAM for app
+        reservations:
+          cpus: '0.5'      # Guaranteed 0.5 vCPU
+          memory: 1.5G     # Guaranteed 1.5GB RAM
+
+networks:
+  app-net:
+    external: true
+    name: "sharing-platform-net"
