@@ -234,7 +234,7 @@ export default function BroadcastViewer({
         ref={videoRef}
         autoPlay
         playsInline
-        muted={false}
+        muted={true}
         controls
         className="w-full h-full object-contain"
       />
@@ -245,7 +245,7 @@ export default function BroadcastViewer({
       />
 
       {/* Overlay with broadcast info */}
-      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
+      <div className="absolute top-0 left-0 right-0 p-4 bg-linear-to-b from-black/70 to-transparent">
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-white text-xl font-semibold">{broadcastInfo.title}</h2>
