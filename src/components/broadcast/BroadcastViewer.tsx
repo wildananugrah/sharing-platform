@@ -7,7 +7,6 @@ import {
   RemoteTrack,
   RemoteTrackPublication,
   RemoteParticipant,
-  Participant,
 } from 'livekit-client';
 
 interface BroadcastViewerProps {
@@ -68,6 +67,18 @@ export default function BroadcastViewer({
           }
         });
 
+        newRoom.on(RoomEvent.TrackPublished, (
+          publication: RemoteTrackPublication,
+          participant: RemoteParticipant
+        ) => {
+          console.log('Track published:', publication.kind, participant.identity);
+
+          // Set broadcaster if not already set
+          if (participant.permissions?.canPublish && mounted) {
+            setBroadcaster(participant);
+          }
+        });
+
         newRoom.on(RoomEvent.TrackSubscribed, (
           track: RemoteTrack,
           publication: RemoteTrackPublication,
@@ -82,7 +93,7 @@ export default function BroadcastViewer({
           }
 
           // Set broadcaster if not already set
-          if (!broadcaster && mounted) {
+          if (participant.permissions?.canPublish && mounted) {
             setBroadcaster(participant);
           }
         });
@@ -127,11 +138,25 @@ export default function BroadcastViewer({
           setRoom(newRoom);
           roomInstance = newRoom;
 
-          // Check for existing broadcaster
+          // Check for existing broadcaster and subscribe to their tracks
           newRoom.remoteParticipants.forEach((participant) => {
+            console.log('Found existing participant:', participant.identity, participant.trackPublications);
+
             if (participant.permissions?.canPublish) {
               setBroadcaster(participant);
             }
+
+            // Subscribe to already published tracks
+            participant.trackPublications.forEach((publication) => {
+              if (publication.track) {
+                console.log('Attaching existing track:', publication.track.kind);
+                if (publication.track.kind === 'video' && videoRef.current) {
+                  publication.track.attach(videoRef.current);
+                } else if (publication.track.kind === 'audio' && audioRef.current) {
+                  publication.track.attach(audioRef.current);
+                }
+              }
+            });
           });
         }
       } catch (err) {
