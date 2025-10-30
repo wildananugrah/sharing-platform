@@ -174,13 +174,37 @@ export default function BroadcastViewer({
           setRoom(newRoom);
           roomInstance = newRoom;
 
-          // Check for existing broadcaster
+          // Check for existing broadcaster and their tracks
           newRoom.remoteParticipants.forEach((participant) => {
             console.log('Found existing participant:', participant.identity);
 
             if (participant.permissions?.canPublish) {
               setBroadcaster(participant);
             }
+
+            // Subscribe to existing published tracks
+            participant.trackPublications.forEach((publication) => {
+              console.log('Found existing track publication:', {
+                trackSid: publication.trackSid,
+                kind: publication.kind,
+                isSubscribed: publication.isSubscribed,
+                hasTrack: !!publication.track,
+              });
+
+              // If track is already available, attach it
+              if (publication.track && publication.isSubscribed) {
+                const track = publication.track;
+                console.log('Attaching existing track:', track.kind);
+
+                if (track.kind === 'video' && videoRef.current) {
+                  track.attach(videoRef.current);
+                  console.log('Video track attached to element');
+                } else if (track.kind === 'audio' && audioRef.current) {
+                  track.attach(audioRef.current);
+                  console.log('Audio track attached to element');
+                }
+              }
+            });
           });
         }
       } catch (err) {
