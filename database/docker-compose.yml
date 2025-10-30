@@ -4,7 +4,7 @@ services:
     image: postgres:18
     container_name: sharing-platform-db
     ports:
-      - "6434:5432"
+      - "6435:5432"
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: ${DB_USER}
