@@ -103,9 +103,14 @@ export default function BroadcastViewer({
                 videoWidth: element.videoWidth,
                 videoHeight: element.videoHeight,
               });
+
+              // Ensure video plays
+              element.play().catch(err => console.error('Error playing video:', err));
             } else if (track.kind === 'audio' && audioRef.current) {
               console.log('Attaching audio track to element', audioRef.current);
-              track.attach(audioRef.current);
+              const audioElement = track.attach(audioRef.current) as HTMLAudioElement;
+              // Ensure audio plays
+              audioElement.play().catch(err => console.error('Error playing audio:', err));
             }
 
             // Set broadcaster if not already set
@@ -190,8 +195,13 @@ export default function BroadcastViewer({
                     videoWidth: element.videoWidth,
                     videoHeight: element.videoHeight,
                   });
+
+                  // Ensure video plays
+                  element.play().catch(err => console.error('Error playing video:', err));
                 } else if (publication.track.kind === 'audio' && audioRef.current) {
-                  publication.track.attach(audioRef.current);
+                  const audioElement = publication.track.attach(audioRef.current) as HTMLAudioElement;
+                  // Ensure audio plays
+                  audioElement.play().catch(err => console.error('Error playing audio:', err));
                 }
               }
             });
