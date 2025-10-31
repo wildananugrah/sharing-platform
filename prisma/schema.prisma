@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,46 +10,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  password      String?
-  name          String?
-  image         String?
-  emailVerified DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  accounts      Account[]
-  Session       Session[]
-
-  @@map("users")
-  UserExtension UserExtension[] @relation("UserUserExtension")
-  Notification Notification[]
-  AuditLog AuditLog[]
-
-  // Broadcasting relations
-  broadcasts     Broadcast[]    @relation("UserBroadcasts")
-  chats          Chat[]         @relation("UserChats")
-  viewedBroadcasts BroadcastViewer[] @relation("UserViews")
-}
-
+// NextAuth models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@map("accounts")
 }
 
 model Session {
@@ -55,8 +36,28 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
-  @@map("sessions")
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  rooms         Room[]
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
 }
 
 model VerificationToken {
@@ -65,142 +66,4 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-  @@map("verificationtokens")
-}
-
-model UserExtension {
-  id                        String    @id @default(cuid())
-  userId                    String    @unique
-  name                      String?
-  email                     String?
-  emailVerified             DateTime?
-  image                     String?
-  emailNotificationsEnabled Boolean   @default(false) // Opt-in email notifications
-  dueDateRemindersEnabled   Boolean   @default(false) // Opt-in for due date reminders
-  role                      String    @default("client") // App-level role: superadmin, admin, lead, member, client
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-  user                      User      @relation("UserUserExtension", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("usersExtension")
-}
-
-model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  type      String
-  title     String
-  message   String
-  taskId    Int?
-  commentId Int?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notifications")
-}
-
-model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String?  // Null for system events
-  apiKeyId    String?  // Track if action was via API key
-  action      String   // e.g., "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT"
-  entity      String   // e.g., "Task", "TaskGroup", "Comment"
-  entityId    String?  // ID of the affected entity
-  metadata    Json?    // Additional data about the change
-  ipAddress   String?  // IP address of the request
-  userAgent   String?  // User agent string
-  sessionId   String?  // Session identifier for grouping related actions
-  duration    Int?     // Operation duration in milliseconds
-  createdAt   DateTime @default(now())
-
-  // Relations (optional, only if user exists)
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // Indexes for performance
-  @@index([userId, createdAt(sort: Desc)])
-  @@index([entity, entityId, createdAt(sort: Desc)])
-  @@index([action, createdAt(sort: Desc)])
-  @@index([createdAt(sort: Desc)])
-  @@index([sessionId])
-  @@map("audit_logs")
-}
-
-// Broadcasting Models
-model Broadcast {
-  id                String    @id @default(cuid())
-  title             String
-  description       String?
-  thumbnailUrl      String?   // S3 URL for thumbnail
-
-  // LiveKit specific
-  roomName          String    @unique
-  roomId            String?   // LiveKit room ID
-
-  // Status management
-  status            String    @default("preparing") // preparing, live, ended
-  viewerCount       Int       @default(0)
-  peakViewerCount   Int       @default(0)
-
-  // Recording info (stored in S3)
-  recordingUrl      String?   // S3 URL after broadcast ends
-  recordingKey      String?   // S3 key for management
-  egressId          String?   // LiveKit egress ID
-  duration          Int?      // Duration in seconds
-  fileSize          BigInt?   // File size in bytes
-
-  // Relations
-  broadcasterId     String
-  broadcaster       User      @relation("UserBroadcasts", fields: [broadcasterId], references: [id])
-  chats             Chat[]
-  viewers           BroadcastViewer[]
-
-  // Timestamps
-  startedAt         DateTime?
-  endedAt           DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  @@index([status, startedAt])
-  @@index([broadcasterId])
-  @@index([createdAt])
-  @@map("broadcasts")
-}
-
-model Chat {
-  id          String    @id @default(cuid())
-  message     String    @db.Text
-  broadcastId String
-  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User      @relation("UserChats", fields: [userId], references: [id])
-
-  // For moderation
-  isDeleted   Boolean   @default(false)
-  deletedBy   String?
-  deletedAt   DateTime?
-
-  createdAt   DateTime  @default(now())
-
-  @@index([broadcastId, createdAt])
-  @@index([userId])
-  @@map("chats")
-}
-
-model BroadcastViewer {
-  id          String    @id @default(cuid())
-  broadcastId String
-  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User      @relation("UserViews", fields: [userId], references: [id])
-
-  // Tracking
-  joinedAt    DateTime  @default(now())
-  leftAt      DateTime?
-  watchTime   Int       @default(0) // Total seconds watched
-
-  @@unique([broadcastId, userId])
-  @@index([broadcastId])
-  @@index([userId])
-  @@map("broadcast_viewers")
 }

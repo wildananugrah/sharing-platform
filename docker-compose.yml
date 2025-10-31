@@ -1,27 +1,25 @@
 services:
-  app:
+  live-meet-app:
     build:
       context: .
       dockerfile: ./app.Dockerfile
-    container_name: sharing-platform-app
+    container_name: live-meet-app
     restart: unless-stopped  # Choose either 'always' or 'unless-stopped'
     ports:
       - '5022:3000'
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL}
-      JWT_SECRET: ${JWT_SECRET}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       LIVEKIT_URL: ${LIVEKIT_URL}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
       NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION}
-      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      DATABASE_URL: ${DATABASE_URL}
+      # NextAuth Configuration
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+
+      # Google OAuth Configuration
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     command: >
       sh -c "npx prisma migrate deploy &&
              npm start"
@@ -46,4 +44,4 @@ services:
 networks:
   app-net:
     external: true
-    name: "sharing-platform-net"
+    name: "live-meet-net"

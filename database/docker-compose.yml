@@ -1,8 +1,8 @@
 services:
       
-  sharing-platform-db:
+  live-meet-db:
     image: postgres:18
-    container_name: sharing-platform-db
+    container_name: live-meet-db
     ports:
       - "6435:5432"
     environment:
@@ -10,14 +10,14 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
     volumes:
-      - sharing-platform-db:/var/lib/postgresql/data
+      - live-meet-db:/var/lib/postgresql/data
     networks:
       app-net: {}
 
 volumes:
-  sharing-platform-db:
+  live-meet-db:
 
 networks:
   app-net:
     external: true
-    name: "sharing-platform-net"
+    name: "live-meet-net"
