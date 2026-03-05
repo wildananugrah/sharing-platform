@@ -1,0 +1,53 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Carreel (Market App) Backend Logs
+  - job_name: carreel-backend
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          app: carreel-backend
+          env: production
+          __path__: /pm2-logs/market-backend-app-out*.log
+
+    pipeline_stages:
+      # Strip ANSI color codes
+      - replace:
+          expression: '\x1b\[[0-9;]*m'
+          replace: ''
+
+      # Parse structured log lines: [level] HH:MM:SS.mmm message key=value...
+      - regex:
+          expression: '^(?P<level>\w+)\s+(?P<time>[\d:.]+)\s+(?P<message>.+)$'
+
+      - labels:
+          level:
+
+  # Carreel Backend Error Logs
+  - job_name: carreel-backend-errors
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          app: carreel-backend
+          env: production
+          level: error
+          __path__: /pm2-logs/market-backend-app-error*.log
+
+  # You can add more apps here later:
+  # - job_name: task-backend
+  #   static_configs:
+  #     - targets:
+  #         - localhost
+  #       labels:
+  #         app: task-backend
+  #         __path__: /pm2-logs/task-backend-app-out*.log
